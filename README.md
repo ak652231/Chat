@@ -1,70 +1,116 @@
-# Getting Started with Create React App
+# FuturChat - Real-Time Chat Application
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+FuturChat is a real-time chat application built using the MERN stack (MongoDB, Express, React, and Node.js). It allows users to register, log in, and engage in real-time conversations with other users.
 
-## Available Scripts
+## Table of Contents
+- [Features](#features)
+- [Setup Instructions](#setup-instructions)
+- [Usage](#usage)
+- [Implemented Requirements](#implemented-requirements)
+- [Bonus Features](#bonus-features)
+- [Technologies Used](#technologies-used)
 
-In the project directory, you can run:
+## Features
 
-### `npm start`
+- User authentication (registration and login)
+- Real-time messaging
+- Online presence indicators
+  - Green dot on user profile for online users
+  - Grey dot on user profile for offline users
+- Chat history on left hand side section
+- User search functionality on top right corner
+- Unread message indicators in red bubbles in chat history
+- Message status indicators (if message is seen by receiver then green tick will appear on message/otherwise single tick)
+- Responsive design
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Setup Instructions
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Prerequisites
+- Node.js (v14 or later)
+- npm (v6 or later)
+- MongoDB
 
-### `npm test`
+### Installation
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+1. Clone the repository:
+   ```
+   git clone https://github.com/ak652231/Chat.git
+   ```
 
-### `npm run build`
+2. Navigate to the project directory:
+   ```
+   cd Chat
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+3. Install dependencies for both client and server:
+   ```
+   cd client
+   npm install
+   cd ../server
+   npm install
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Running the Application Locally
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. Start the server:
+   ```
+   cd server
+   npm start
+   ```
 
-### `npm run eject`
+2. In a new terminal, start the client:
+   ```
+   cd client
+   npm start
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+3. The application should now be running on `http://localhost:3000`
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Usage
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Open your browser and navigate to `http://localhost:3000`
+2. Register a new account or log in if you already have one
+3. Start chatting with other users in real-time
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Implemented Requirements
 
-## Learn More
+1. User Authentication:
+   - JWT-based authentication
+   - Secure password hashing
+   - User registration and login
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+2. Chat Functionality:
+   - Real-time messaging using Socket.io
+   - Chat history stored in MongoDB
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+3. User Interface:
+   - React-based frontend
+   - List of online users
+   - Simple chat UI with input field and message display area
 
-### Code Splitting
+4. Online Presence Indicator:
+   - Real-time updates of user online/offline status
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+5. Basic UI Features:
+   - Auto-scrolling chat window
+   - Message timestamps
+   - Minimalist design
 
-### Analyzing the Bundle Size
+## Bonus Features
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+- Message read receipts
 
-### Making a Progressive Web App
+## Technologies Used
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+- Frontend: React, Socket.io-client
+- Backend: Node.js, Express, Socket.io
+- Database: MongoDB
+- Authentication: JWT (JSON Web Tokens)
 
-### Advanced Configuration
+## Hosted Application
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+You can access the hosted version of the application at: https://symphonious-taffy-107840.netlify.app/
 
-### Deployment
+## Note
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Due to time constraints, some bonus features like typing indicators and media message support were not implemented in this version of the application.
