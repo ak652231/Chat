@@ -118,17 +118,42 @@ exports.login = async (req, res) => {
     res.status(500).json({ msg: 'Server error during login' });
   }
 };
-exports.getUserProfile = async (req, res) => {
+
+exports.getUsers = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    
+    const users = await User.find({}, 'username name isOnline lastSeen');
+
+    if (!users || users.length === 0) {
+      return res.status(404).json({ msg: 'No users found' });
+    }
+
+    res.json(users);
+  } catch (err) {
+    console.error('Get users error:', err.message);
+    res.status(500).json({ msg: 'Server error while fetching users' });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id, 'username name isOnline lastSeen');
+
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
     }
 
     res.json(user);
   } catch (err) {
-    console.error('Get profile error:', err.message);
-    res.status(500).json({ msg: 'Server error while fetching profile' });
+    console.error('Get user by ID error:', err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'User not found' });
+    }
+    res.status(500).json({ msg: 'Server error while fetching user' });
   }
 };
+
+module.exports = {
+  validateInput,
+  ...exports
+};
+

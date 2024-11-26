@@ -21,7 +21,10 @@ app.use(cors());
 app.use(bodyParser.json());
 
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/chat', require('./routes/chat')); // No `io` passed here
 
+// Socket functionality
+require('./controllers/socketController')(io);
 
 const PORT = process.env.PORT || 5000;
 
