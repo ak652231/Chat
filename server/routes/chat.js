@@ -6,6 +6,7 @@ const chatController = require('../controllers/chatController');
 router.get('/conversations/:conversationId', auth, chatController.getConversationMessages);
 router.get('/conversations', auth, chatController.getConversations);
 router.post('/search-conversation', auth,chatController.searchConversation);
+router.post('/conversations/:conversationId/read', auth, chatController.markMessagesAsRead);
 
 router.get('/search-users', auth, chatController.searchUsers);
 

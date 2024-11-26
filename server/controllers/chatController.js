@@ -6,10 +6,7 @@ const User = require('../models/User');
 exports.getConversations = async (req, res) => {
   try {
     const userId = req.user.id;
-    
     const userObjectId = new mongoose.Types.ObjectId(userId);
-
-    console.log('Retrieving conversations for userId:', userId);
 
     const conversations = await Conversation.aggregate([
       {
@@ -45,6 +42,26 @@ exports.getConversations = async (req, res) => {
       {
         $lookup: {
           from: 'messages',
+          let: { conversationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$conversationId', '$$conversationId'] },
+                    { $eq: ['$receiverId', userObjectId] },
+                    { $eq: ['$read', false] }
+                  ]
+                }
+              }
+            }
+          ],
+          as: 'unreadMessages'
+        }
+      },
+      {
+        $lookup: {
+          from: 'messages',
           localField: 'lastMessage',
           foreignField: '_id',
           as: 'lastMessageDetails'
@@ -66,7 +83,8 @@ exports.getConversations = async (req, res) => {
             isOnline: '$otherUser.isOnline'
           },
           lastMessage: '$lastMessageDetails.content',
-          lastMessageTimestamp: '$lastMessageDetails.timestamp'
+          lastMessageTimestamp: '$lastMessageDetails.timestamp',
+          unreadCount: { $size: '$unreadMessages' }
         }
       },
       {
@@ -74,24 +92,9 @@ exports.getConversations = async (req, res) => {
       }
     ]);
 
-    console.log('Conversations found:', conversations.length);
-    console.log('First conversation (if any):', conversations[0]);
-
-    const allConversations = await Conversation.find({ 
-      participants: userObjectId 
-    });
-    console.log('Raw conversations count:', allConversations.length);
-
     res.json(conversations);
   } catch (error) {
     console.error('Get conversations error:', error);
-    
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-
     res.status(500).json({ 
       message: 'Server error', 
       errorDetails: error.message 
@@ -99,6 +102,26 @@ exports.getConversations = async (req, res) => {
   }
 };
 
+exports.markMessagesAsRead = async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.id;
+
+    await Message.updateMany(
+      { 
+        conversationId: conversationId, 
+        receiverId: userId,
+        read: false 
+      },
+      { read: true }
+    );
+
+    res.json({ message: 'Messages marked as read', unreadCount: 0 });
+  } catch (error) {
+    console.error('Mark messages as read error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
 exports.getConversationMessages = async (req, res) => {
   try {
     const { conversationId } = req.params;

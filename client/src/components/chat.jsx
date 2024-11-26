@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import { jwtDecode } from 'jwt-decode';
-import { FiSend, FiUser, FiMessageSquare, FiCircle, FiSearch, FiX } from 'react-icons/fi';
+import { FiSend, FiUser, FiMessageSquare, FiSearch, FiX, FiCheck, FiCheckCircle } from 'react-icons/fi';
 
 const getCurrentUserId = () => {
   try {
@@ -28,19 +28,10 @@ const ChatInterface = () => {
   const [users, setUsers] = useState([]);
   const [error, setError] = useState(null);
 
-  // In useEffect or when component mounts
   useEffect(() => {
-    // Connect to socket
     const newSocket = io('http://localhost:5000', {
       auth: {
         token: sessionStorage.getItem('token')
-      }
-    });
-
-    newSocket.on('receive_message', (message) => {
-      if (selectedConversation &&
-        message.conversationId === selectedConversation.conversationId) {
-        setMessages(prevMessages => [...prevMessages, message]);
       }
     });
 
@@ -50,10 +41,66 @@ const ChatInterface = () => {
   }, [selectedConversation]);
 
   useEffect(() => {
+    if (!socket) return;
+  
+    const handleReceiveMessage = (message) => {
+      setConversations(prevConversations => 
+        prevConversations.map(conv => {
+          const shouldUpdateUnreadCount = 
+            conv.user._id === message.senderId && 
+            !(selectedConversation && 
+              selectedConversation.conversationId === message.conversationId);
+          
+          return shouldUpdateUnreadCount 
+            ? {...conv, unreadCount: message.unreadCount} 
+            : conv;
+        })
+      );
+  
+      if (selectedConversation && 
+          message.conversationId === selectedConversation.conversationId) {
+        setMessages(prevMessages => [...prevMessages, message]);
+      }
+    };
+  
+    const handleMessagesRead = ({ conversationId, receiverId }) => {
+      setMessages(prevMessages => 
+        prevMessages.map(msg => 
+          msg.conversationId === conversationId && msg.senderId === getCurrentUserId()
+            ? { ...msg, read: true }
+            : msg
+        )
+      );
+    };
+  
+    socket.on('receive_message', handleReceiveMessage);
+    socket.on('messages_read', handleMessagesRead);
+  
+    return () => {
+      socket.off('receive_message', handleReceiveMessage);
+      socket.off('messages_read', handleMessagesRead);
+    };
+  }, [socket, selectedConversation]);
+
+  useEffect(() => {
+    if (selectedConversation && socket) {
+      const currentUserId = getCurrentUserId();
+      const hasUnreadMessages = messages.some(
+        msg => msg.receiverId === currentUserId && !msg.read
+      );
+
+      if (hasUnreadMessages) {
+        socket.emit('mark_messages_read', {
+          conversationId: selectedConversation.conversationId,
+          senderId: messages.find(msg => msg.receiverId === currentUserId && !msg.read)?.senderId
+        });
+      }
+    }
+  }, [selectedConversation, messages, socket]);
+
+  useEffect(() => {
     const fetchConversations = async () => {
       const token = sessionStorage.getItem('token');
-      console.log('Stored token:', sessionStorage.getItem('token'));
-
       try {
         const response = await fetch('http://localhost:5000/api/chat/conversations', {
           method: 'GET',
@@ -62,9 +109,7 @@ const ChatInterface = () => {
           }
         });
         const data = await response.json();
-
         const conversationsArray = Array.isArray(data) ? data : [data];
-        console.log("convo:", conversationsArray);
         setConversations(conversationsArray);
       } catch (error) {
         console.error('Failed to fetch conversations:', error);
@@ -74,7 +119,6 @@ const ChatInterface = () => {
 
     const fetchUsers = async () => {
       const token = sessionStorage.getItem('token');
-
       try {
         const response = await fetch(`http://localhost:5000/api/chat/search-users?query=${encodeURIComponent(searchQuery)}`, {
           method: 'GET',
@@ -83,7 +127,6 @@ const ChatInterface = () => {
           }
         });
         const data = await response.json();
-
         if (Array.isArray(data)) {
           setUsers(data);
         } else {
@@ -146,8 +189,6 @@ const ChatInterface = () => {
         });
         const data = await response.json();
         const messagesArray = Array.isArray(data) ? data : [data];
-        console.log('Fetched messages:', data);
-
         if (Array.isArray(data)) {
           setMessages(messagesArray);
         } else {
@@ -164,6 +205,35 @@ const ChatInterface = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    const markMessagesAsRead = async () => {
+      if (!selectedConversation) return;
+
+      const token = sessionStorage.getItem('token');
+      try {
+        await fetch(`http://localhost:5000/api/chat/conversations/${selectedConversation.conversationId}/read`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        setConversations(prevConversations => 
+          prevConversations.map(conv => 
+            conv.conversationId === selectedConversation.conversationId 
+              ? {...conv, unreadCount: 0} 
+              : conv
+          )
+        );
+      } catch (error) {
+        console.error('Failed to mark messages as read:', error);
+      }
+    };
+
+    markMessagesAsRead();
+  }, [selectedConversation]);
 
   useEffect(() => {
     const filtered = users.filter(user =>
@@ -189,6 +259,7 @@ const ChatInterface = () => {
       receiverId,
       content: newMessage
     });
+
     const fetchMessages = async () => {
       if (!selectedConversation) return;
 
@@ -234,8 +305,6 @@ const ChatInterface = () => {
         });
         const data = await response.json();
         const messagesArray = Array.isArray(data) ? data : [data];
-        console.log('Fetched messages:', data);
-
         if (Array.isArray(data)) {
           setMessages(messagesArray);
         } else {
@@ -245,10 +314,9 @@ const ChatInterface = () => {
         console.error('Failed to fetch messages:', error);
       }
     };
+
     const fetchConversations = async () => {
       const token = sessionStorage.getItem('token');
-      console.log('Stored token:', sessionStorage.getItem('token'));
-
       try {
         const response = await fetch('http://localhost:5000/api/chat/conversations', {
           method: 'GET',
@@ -257,25 +325,25 @@ const ChatInterface = () => {
           }
         });
         const data = await response.json();
-
         const conversationsArray = Array.isArray(data) ? data : [data];
-        console.log("convo:", conversationsArray);
         setConversations(conversationsArray);
       } catch (error) {
         console.error('Failed to fetch conversations:', error);
         setConversations([]); 
       }
     };
+
     fetchConversations();
     fetchMessages();
     setNewMessage('');
-
   };
+
   const handleUserSelect = (user) => {
     setSelectedConversation({
       user: user,
       conversationId: null  
     });
+    setMessages([]);
     setIsSearchOpen(false);
     setSearchQuery('');
   };
@@ -306,6 +374,7 @@ const ChatInterface = () => {
           {selectedConversation && !selectedConversation.conversationId && (
             <button
               className="mr-2 bg-[#2563EB] text-[#E5E7EB] rounded-full p-2 hover:bg-[#1E40AF] transition-colors duration-300"
+              onClick={() => setSelectedConversation(null)}
             >
               <FiX />
             </button>
@@ -328,18 +397,25 @@ const ChatInterface = () => {
             {conversations.map((conv) => (
               <li
                 key={conv.conversationId}
-                className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors duration-200 ${selectedConversation?.conversationId === conv.conversationId ? 'bg-[#2563EB]' : 'hover:bg-[#312E81]'
-                  }`}
+                className={`flex items-center p-2 rounded-lg cursor-pointer transition-colors duration-200 ${
+                  selectedConversation?.conversationId === conv.conversationId ? 'bg-[#2563EB]' : 'hover:bg-[#312E81]'
+                }`}
                 onClick={() => setSelectedConversation(conv)}
               >
-                <FiUser className="mr-2 text-[#FACC15]" />
-                <span className="truncate">
+                <div className="relative mr-2">
+                  <FiUser className="text-[#FACC15]" />
+                  <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
+                    conv.user?.isOnline ? 'bg-green-500' : 'bg-gray-500'
+                  }`}></span>
+                </div>
+                <span className="truncate flex-grow">
                   {conv.user?.name || conv.user?.username || 'Unknown User'}
                 </span>
-                <FiCircle
-                  className={`ml-auto w-2 h-2 ${conv.user?.isOnline ? 'text-green-500' : 'text-gray-500'
-                    }`}
-                />
+                {conv.unreadCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white rounded-full px-2 py-1 text-xs">
+                    {conv.unreadCount}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -347,33 +423,46 @@ const ChatInterface = () => {
 
         {/* Chat Area */}
         <div className={`flex-1 flex flex-col h-[calc(100vh-3rem)] transition-all duration-300 ease-in-out ${isSearchOpen ? 'mr-64' : ''}`}>
-          {selectedConversation ? (
-            <>
+          {selectedConversation ?
+<>
               {/* Chat Header */}
               <div className="bg-[#1E3A8A] p-4 flex items-center">
-                <FiUser className="mr-2 text-[#FACC15]" />
+                <div className="relative mr-2">
+                  <FiUser className="text-[#FACC15]" />
+                  <span className={`absolute bottom-0 right-0 w-2 h-2 rounded-full ${
+                    selectedConversation.user.isOnline ? 'bg-green-500' : 'bg-gray-500'
+                  }`}></span>
+                </div>
                 <span className="font-bold">{selectedConversation.user.name}</span>
-                <FiCircle
-                  className={`ml-2 w-2 h-2 ${selectedConversation.user.isOnline ? 'text-green-500' : 'text-gray-500'
-                    }`}
-                />
               </div>
 
               {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                 {messages.map((message) => (
                   <div
                     key={message._id}
                     className={`flex ${message.senderId === getCurrentUserId() ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-xs p-3 rounded-lg ${message.senderId === getCurrentUserId() ? 'bg-[#2563EB]' : 'bg-[#312E81]'
-                        }`}
+                      className={`max-w-xs p-3 rounded-lg ${
+                        message.senderId === getCurrentUserId() ? 'bg-[#2563EB]' : 'bg-[#312E81]'
+                      }`}
                     >
                       <p>{message.content}</p>
-                      <p className="text-xs text-[#A78BFA] mt-1">
-                        {new Date(message.timestamp).toLocaleTimeString()}
-                      </p>
+                      <div className="flex items-center justify-end mt-1">
+                        <p className="text-xs text-[#A78BFA] mr-2">
+                          {new Date(message.timestamp).toLocaleTimeString()}
+                        </p>
+                        {message.senderId === getCurrentUserId() && (
+                          <span className="text-xs">
+                            {message.read ? (
+                              <FiCheckCircle className="text-green-400" />
+                            ) : (
+                              <FiCheck className="text-[#A78BFA]" />
+                            )}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -399,21 +488,21 @@ const ChatInterface = () => {
                 </div>
               </form>
             </>
-          ) : (
-            // No conversation selected
+            :
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <FiMessageSquare className="mx-auto text-6xl text-[#A78BFA] mb-4" />
                 <p className="text-xl">Select a conversation to start chatting</p>
               </div>
             </div>
-          )}
+          }
         </div>
 
         {/* Search Capsule */}
         <div
-          className={`fixed right-0 top-12 bottom-0 bg-[#1E3A8A] w-64 transition-all duration-300 ease-in-out transform ${isSearchOpen ? 'translate-x-0' : 'translate-x-full'
-            }`}
+          className={`fixed right-0 top-12 bottom-0 bg-[#1E3A8A] w-64 transition-all duration-300 ease-in-out transform ${
+            isSearchOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
         >
           <div className="p-4">
             <div className="flex items-center mb-4">
@@ -425,7 +514,7 @@ const ChatInterface = () => {
                 className="flex-1 bg-[#312E81] text-[#E5E7EB] placeholder-[#A78BFA] rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               />
             </div>
-            <div className="overflow-y-auto h-[calc(100vh-8rem)]">
+            <div className="overflow-y-auto h-[calc(100vh-8rem)] custom-scrollbar">
               {searchResults.map((user) => (
                 <div
                   key={user._id}

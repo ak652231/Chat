@@ -20,7 +20,7 @@ module.exports = (io) => {
     console.log('New client connected:', socket.userId);
 
     User.findByIdAndUpdate(socket.userId, { isOnline: true }).exec();
-
+    
     socket.on('send_message', async (data) => {
       try {
         const { receiverId, content } = data;
@@ -42,7 +42,8 @@ module.exports = (io) => {
           senderId,
           receiverId,
           content,
-          timestamp: new Date()
+          timestamp: new Date(),
+          read: false 
         });
         await newMessage.save();
 
@@ -53,9 +54,17 @@ module.exports = (io) => {
           .find(s => s.userId === receiverId);
 
         if (receiverSocket) {
+          const unreadCount = await Message.countDocuments({
+            conversationId: conversation._id,
+            receiverId: receiverId,
+            read: false
+          });
+
           receiverSocket.emit('receive_message', {
             ...newMessage.toObject(),
-            conversationId: conversation._id
+            conversationId: conversation._id,
+            unreadCount: unreadCount,
+            senderId: senderId  
           });
         }
 
@@ -67,6 +76,49 @@ module.exports = (io) => {
       } catch (error) {
         console.error('Send message error:', error);
         socket.emit('message_error', { error: 'Failed to send message' });
+      }
+    });
+
+    socket.on('mark_messages_read', async (data) => {
+      try {
+        const { conversationId, senderId } = data;
+        const receiverId = socket.userId;
+
+        const updatedMessages = await Message.updateMany(
+          { 
+            conversationId: conversationId, 
+            senderId: senderId,
+            receiverId: receiverId,
+            read: false 
+          },
+          { read: true }
+        );
+
+        const senderSocket = Array.from(io.sockets.sockets.values())
+          .find(s => s.userId === senderId);
+
+        const unreadCount = await Message.countDocuments({
+          conversationId: conversationId,
+          receiverId: senderId,
+          read: false
+        });
+
+        if (senderSocket) {
+          senderSocket.emit('messages_read', {
+            conversationId,
+            receiverId,
+            unreadCount  
+          });
+        }
+
+        io.to(senderId).emit('messages_read', {
+          conversationId,
+          receiverId,
+          unreadCount
+        });
+
+      } catch (error) {
+        console.error('Mark messages read error:', error);
       }
     });
 
