@@ -18,7 +18,8 @@ FuturChat is a real-time chat application built using the MERN stack (MongoDB, E
   - Green dot on user profile for online users
   - Grey dot on user profile for offline users
 - Chat history on left hand side section
-- User search functionality on top right corner
+- User search functionality on top right corner 
+- Search the username of user and send a message to the corresponding user for initiating conversation
 - Unread message indicators in red bubbles in chat history
 - Message status indicators (if message is seen by receiver then green tick will appear on message/otherwise single tick)
 - Responsive design
